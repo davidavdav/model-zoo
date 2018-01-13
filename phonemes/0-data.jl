@@ -28,3 +28,6 @@ Yo = batches([tokenise([:start, dict[word]...], phones) for word in words],
              onehot(:end, phones))
 
 data = collect(zip(Xs, Yo, Ys))
+
+word(tokenseq) = join([Flux.argmax(s, alphabet) for s in tokenseq)
+pron(tonenseq) = [Flux.argmax(s, phones) for s in tokenseq)

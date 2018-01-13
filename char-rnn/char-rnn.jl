@@ -2,6 +2,14 @@ using Flux
 using Flux: onehot, argmax, chunk, batchseq, truncate!, throttle, crossentropy
 using Base.Iterators: partition
 
+using CLArrays
+
+gpudevs = CLArrays.devices(is_gpu)
+useCL = length(gpudevs) > 0
+if useCL
+    CLArrays.init(gpudevs[1])
+end
+
 cd(@__DIR__)
 
 isfile("input.txt") ||
@@ -29,17 +37,21 @@ m = Chain(
 
 loss(xs, ys) = sum(crossentropy.(m.(xs), ys))
 
-opt = ADAM(params(m), 0.01)
+opt = ADAM(params(m), Float32(0.01))
 
 evalcb = () -> @show loss(Xs[5], Ys[5])
 
-Flux.train!(loss, zip(Xs, Ys), opt,
-            cb = [() -> truncate!(m),
-                  throttle(evalcb, 10)])
+trainstep(Xs, Ys) = Flux.train!(loss, zip(Xs, Ys), opt, cb = [() -> truncate!(m), throttle(evalcb, 10)])
+
+if useCL
+    ngpu = 100
+    CXs = [[CLArray(Array{Float32}(m)) for m in x] for x in Xs[1:ngpu]]
+    CYs = [[CLArray(Array{Float32}(m)) for m in y] for y in Ys[1:ngpu]]
+end
 
 # Sampling
 
-function sample(m, alphabet, len)
+function orig_sample(m, alphabet, len)
   Flux.reset!(m)
   buf = IOBuffer()
   s = onehot(rand(alphabet), alphabet)
@@ -49,5 +61,3 @@ function sample(m, alphabet, len)
   end
   return String(take!(buf))
 end
-
-sample(m, alphabet, 100)
