@@ -1,5 +1,18 @@
 # using StatsBase
 
+function orig_sample(m, alphabet, len)
+  Flux.reset!(m)
+  buf = IOBuffer()
+  s = onehot(rand(alphabet), alphabet)
+  for i = 1:len
+    write(buf, argmax(s, alphabet))
+    s = m(s)
+  end
+  return String(take!(buf))
+end
+
+## similar in functionality to StatsBase
+
 function sample(x, w)
     w = w ./ sum(w)
     cw = cumsum(w)
@@ -10,7 +23,6 @@ function sample(x, w)
     end
     return x[i]
 end
-
 
 function sampleT(m, alphabet, len)
     Flux.reset!(m)

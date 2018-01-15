@@ -2,14 +2,6 @@ using Flux
 using Flux: onehot, argmax, chunk, batchseq, truncate!, throttle, crossentropy
 using Base.Iterators: partition
 
-using CLArrays
-
-gpudevs = CLArrays.devices(is_gpu)
-useCL = length(gpudevs) > 0
-if useCL
-    CLArrays.init(gpudevs[1])
-end
-
 cd(@__DIR__)
 
 isfile("input.txt") ||
@@ -43,21 +35,3 @@ evalcb = () -> @show loss(Xs[5], Ys[5])
 
 trainstep(Xs, Ys) = Flux.train!(loss, zip(Xs, Ys), opt, cb = [() -> truncate!(m), throttle(evalcb, 10)])
 
-if useCL
-    ngpu = 100
-    CXs = [[CLArray(Array{Float32}(m)) for m in x] for x in Xs[1:ngpu]]
-    CYs = [[CLArray(Array{Float32}(m)) for m in y] for y in Ys[1:ngpu]]
-end
-
-# Sampling
-
-function orig_sample(m, alphabet, len)
-  Flux.reset!(m)
-  buf = IOBuffer()
-  s = onehot(rand(alphabet), alphabet)
-  for i = 1:len
-    write(buf, argmax(s, alphabet))
-    s = m(s)
-  end
-  return String(take!(buf))
-end
